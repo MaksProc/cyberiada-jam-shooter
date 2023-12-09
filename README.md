@@ -1,29 +1,22 @@
-## Project Description
+## About Project
 
 Prototype of a 3D shooter game inspired by Brawl Stars.
+
+### Gallery
 
 <img width="1120" alt="Screenshot 1" src="https://github.com/AlAstapchyk/top-bottom-shooter3d/assets/104316850/0360c3eb-ce29-4ece-9e3f-ac74988d7885">
 
 <img width="1120" alt="Screenshot 2" src="https://github.com/AlAstapchyk/top-bottom-shooter3d/assets/104316850/164c83cb-b759-4a78-aeb6-e5c231389cb0">
 
 
-#### Highlights
+### Highlights
 
 - Gamepad and Keyboard control
 - Custom Fog of War
 - Custom weapon system with ricochet
 - Enemy destruction and self-destruction
 
-## Getting Started
-
-Unity version: 2021.3.11f1 
-
-1. Clone Repository
-2. Launch project in the Unity
-3. Open scene "SamleScene.unity" inside "\Assets\Scenes"
-4. Launch scene
-
-## Getting Started
+### Getting Started
 
 **Unity version: 2021.3.11f1**
 

@@ -1,88 +1,118 @@
-﻿using System.Collections.Generic;
 using UnityEngine;
-using CodeMonkey.Utils;
 
-public class FieldOfView : MonoBehaviour {
+[RequireComponent(typeof(MeshFilter))]
+public class FieldOfView : MonoBehaviour
+{
+    [Header("Field of View Settings")]
+    [SerializeField] private float fov = 90f;           // Field of view angle (degrees)
+    [SerializeField] private float viewDistance = 50f;  // Maximum view distance
+    [SerializeField] private float angleStep = 1f;      // Angle between rays (degrees)
+    [SerializeField] private LayerMask layerMask;       // Layers to detect collisions
+    [SerializeField] private Color onEnemyColor = new Color(1f, 0f, 0f, 0);
 
-    [SerializeField] Transform transf;
-    [SerializeField] private LayerMask layerMask;
-    [SerializeField] private float angleBetweenRays;
+    [Header("References")]
+    [SerializeField] private Transform fovTransf;       // The transform to use as the origin
+    [SerializeField] private MeshRenderer meshRenderer; // Material to change the color of the FOV mesh
+
     private Mesh mesh;
-    [SerializeField] private float fov = 90f;
-    [SerializeField] private float viewDistance = 50f;
-    [SerializeField] private Vector3 origin = Vector3.zero;
+    private Material runtimeMat;
+    private Color originalColor;
 
-    private void Start() 
+    private void Start()
     {
         mesh = new Mesh();
         GetComponent<MeshFilter>().mesh = mesh;
+
+        // Clone the material and store the original color
+        runtimeMat = new Material(meshRenderer.material);
+        meshRenderer.material = runtimeMat;
+        originalColor = runtimeMat.GetColor("_EmissionColor");
     }
 
-    private void LateUpdate() 
+    private void Update()
     {
-        int rayCount = Mathf.CeilToInt(fov / angleBetweenRays) + 1;
+        GenerateFieldOfViewMesh();
+    }
 
-        Vector3[] vertices = new Vector3[(rayCount + 1)];
-        Vector2[] uv = new Vector2[vertices.Length];
-        int[] triangles = new int[((rayCount - 1) * 3)];
+    private void GenerateFieldOfViewMesh()
+    {
+        int rayCount = Mathf.CeilToInt(fov / angleStep) + 1;
+        Vector3[] vertices = new Vector3[rayCount + 1]; // One extra for the origin
+        int[] triangles = new int[(rayCount - 1) * 3];  // Each triangle needs 3 points
 
-        vertices[0] = origin;
+        vertices[0] = Vector3.zero; // Origin of the field of view
 
         int vertexIndex = 1;
         int triangleIndex = 0;
+
+        bool hitEnemy = false; // Flag to detect if an enemy is hit
+
         for (int i = 0; i < rayCount; i++)
         {
+            float angle = -fov / 2 + angleStep * i;
+            float worldAngle = angle - fovTransf.eulerAngles.y;
+            Vector3 direction = AngleToDirection(worldAngle);
+            Vector3 rayEndpoint = direction * viewDistance;
+
+            bool ishitted = Physics.Raycast(fovTransf.position, direction, out RaycastHit hit, viewDistance, layerMask);
+
             Vector3 vertex;
-            float vertexAngle = angleBetweenRays * i - fov / 2 + 90;
-            Vector3 vertexMaxPosLoc = UtilsClass.GetVectorFromAngle(vertexAngle) * viewDistance;
-            Vector3 vertexMaxPos = UtilsClass.GetVectorFromAngle(vertexAngle - transf.eulerAngles.y) * viewDistance;
-
-            Debug.DrawLine(transf.position, vertexMaxPos + transf.position);
-
-            if (Physics.Raycast(transf.position, vertexMaxPos, out RaycastHit raycastHit, viewDistance, layerMask))
+            // Check if the ray hit an object with the "Enemy" tag
+            if (ishitted)
             {
-                Vector3 vertexLoc = transf.InverseTransformPoint(raycastHit.point);
-                vertex = new Vector3(vertexLoc.x, 0, vertexLoc.z);
-                //Debug.Log(vertex);
+                if (hit.collider != null && hit.collider.CompareTag("Enemy"))
+                {
+                    hitEnemy = true;
+                    vertex = fovTransf.InverseTransformPoint(fovTransf.position + rayEndpoint); // Otherwise, max range
+                }
+                else
+                {
+                    vertex = fovTransf.InverseTransformPoint(hit.point);
+                }
             }
             else
             {
-                vertex = origin + vertexMaxPosLoc;
+                vertex = fovTransf.InverseTransformPoint(fovTransf.position + rayEndpoint); // Otherwise, max range
             }
 
-            vertices[vertexIndex] = vertex;
-            
+            vertices[vertexIndex] = new Vector3(vertex.x, 0, vertex.z);
+
             if (i > 0)
             {
-                triangles[triangleIndex] = 0;
-                triangles[triangleIndex + 1] = vertexIndex - 1;
-                triangles[triangleIndex + 2] = vertexIndex;
-
-                triangleIndex += 3;
+                triangles[triangleIndex++] = 0;
+                triangles[triangleIndex++] = vertexIndex - 1;
+                triangles[triangleIndex++] = vertexIndex;
             }
 
             vertexIndex++;
+
+            Debug.DrawLine(fovTransf.position, fovTransf.position + direction * viewDistance, hitEnemy ? Color.red : Color.green);
         }
 
+        // Assign the generated data to the mesh
+        mesh.Clear();
         mesh.vertices = vertices;
-        mesh.uv = uv;
         mesh.triangles = triangles;
-        mesh.bounds = new Bounds(origin, Vector3.one * 1000f);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        // Update the material color if an enemy was hit
+        runtimeMat.SetColor("_EmissionColor", hitEnemy ? onEnemyColor : originalColor);
     }
 
-    //public void SetOrigin(Vector3 origin) {
-    //    this.origin = origin;
-    //}
+    private Vector3 AngleToDirection(float angleInDegrees)
+    {
+        float radian = angleInDegrees * Mathf.Deg2Rad;
+        return new Vector3(Mathf.Cos(radian), 0, Mathf.Sin(radian));
+    }
 
-    //public void SetAimDirection(Vector3 aimDirection) {
-    //    startingAngle = UtilsClass.GetAngleFromVectorFloat(aimDirection) + fov / 2f;
-    //}
+    public void UpdateFOV(float newFOV)
+    {
+        fov = Mathf.Clamp(newFOV, 0f, 360f);
+    }
 
-    //public void SetFoV(float fov) {
-    //    this.fov = fov;
-    //}
-
-    //public void SetViewDistance(float viewDistance) {
-    //    this.viewDistance = viewDistance;
-    //}
+    public void setViewDistance(float viewDistance)
+    {
+        if (viewDistance >= 0) this.viewDistance = viewDistance;
+    }
 }

@@ -41,6 +41,10 @@ public class Bullet : MonoBehaviour
         {
             health.TakeDamage(damage);
         }
+        if (collision.gameObject.TryGetComponent(out EnemyMovement enemyMovement))
+        {
+            enemyMovement.TriggerBulletHitReaction();
+        }
         Destroy(gameObject);
     }
 }
